@@ -10,6 +10,7 @@ using System;
 using System.Text;
 using UnityEngine;
 using System.Reflection;
+using TheOtherRoles.Objects;
 
 namespace TheOtherRoles.Patches {
     [HarmonyPatch]
@@ -358,11 +359,37 @@ namespace TheOtherRoles.Patches {
             }
         }
 
+        static void addLoggerInformationsPostfix(MeetingHud __instance)
+        {
+            bool isLogger = Logger.logger != null && PlayerControl.LocalPlayer == Logger.logger;
+            if(isLogger)
+            {                      
+                for (int i = 0; i < LogTrap.logTraps.Count; i++)
+                {
+                    string msg = $"log trap {i+1}:";
+                    LogTrap.logTraps[i].playersName.Reverse();
+                    foreach (string playerName in LogTrap.logTraps[i].playersName)
+                    {
+                        msg += $" {playerName},";
+                    }                     
+                    if(msg.Last() ==  ',')
+                    {
+                        msg = msg.Remove(msg.Length - 1);
+                    }
+                    if (AmongUsClient.Instance.AmClient && DestroyableSingleton<HudManager>.Instance)
+                    {
+                        DestroyableSingleton<HudManager>.Instance.Chat.AddChat(PlayerControl.LocalPlayer, msg);
+                    }
+                }
+            }                                                 
+        }
+
         [HarmonyPatch(typeof(MeetingHud), nameof(MeetingHud.ServerStart))]
         class MeetingServerStartPatch {
             static void Postfix(MeetingHud __instance)
             {
                 populateButtonsPostfix(__instance);
+                addLoggerInformationsPostfix(__instance);
             }
         }
 
@@ -373,6 +400,7 @@ namespace TheOtherRoles.Patches {
                 // Add swapper buttons
                 if (initialState) {
                     populateButtonsPostfix(__instance);
+                    addLoggerInformationsPostfix(__instance);
                 }
             }
         }

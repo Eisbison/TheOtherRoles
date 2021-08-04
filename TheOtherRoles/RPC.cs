@@ -44,6 +44,7 @@ namespace TheOtherRoles
         Cleaner,
         Warlock,
         SecurityGuard,
+        Logger,
         Arsonist,
         Guesser,
         BountyHunter,
@@ -80,6 +81,7 @@ namespace TheOtherRoles
         VampireSetBitten,
         VampireTryKill,
         PlaceGarlic,
+        PlaceLogTrap,
         JackalKill,
         SidekickKill,
         JackalCreatesSidekick,
@@ -103,6 +105,7 @@ namespace TheOtherRoles
         public static void resetVariables() {
             Garlic.clearGarlics();
             JackInTheBox.clearJackInTheBoxes();
+            LogTrap.clearLogTraps();            
             clearAndReloadMapOptions();
             clearAndReloadRoles();
             clearGameHistory();
@@ -221,6 +224,9 @@ namespace TheOtherRoles
                     case RoleId.SecurityGuard:
                         SecurityGuard.securityGuard = player;
                         break;
+                    case RoleId.Logger:
+                         Logger.logger = player;
+                         break;
                     case RoleId.Arsonist:
                         Arsonist.arsonist = player;
                         break;
@@ -411,7 +417,9 @@ namespace TheOtherRoles
                 SecurityGuard.securityGuard = oldShifter;
             if (Guesser.guesser != null && Guesser.guesser == player)
                 Guesser.guesser = oldShifter;
-            
+            if (Logger.logger != null && Logger.logger == player)
+                Logger.logger = oldShifter;
+
             // Set cooldowns to max for both players
             if (PlayerControl.LocalPlayer == oldShifter || PlayerControl.LocalPlayer == player)
                 CustomButton.ResetAllCooldowns();
@@ -464,6 +472,14 @@ namespace TheOtherRoles
             position.x = BitConverter.ToSingle(buff, 0*sizeof(float));
             position.y = BitConverter.ToSingle(buff, 1*sizeof(float));
             new Garlic(position);
+        }
+
+        public static void placeLogTrap(byte[] buff)
+        {
+            Vector3 position = Vector3.zero;
+            position.x = BitConverter.ToSingle(buff, 0 * sizeof(float));
+            position.y = BitConverter.ToSingle(buff, 1 * sizeof(float));
+            new LogTrap(position);
         }
 
         public static void trackerUsedTracker(byte targetId) {
@@ -790,6 +806,9 @@ namespace TheOtherRoles
                     break;
                 case (byte)CustomRPC.PlaceGarlic:
                     RPCProcedure.placeGarlic(reader.ReadBytesAndSize());
+                    break;
+                case (byte)CustomRPC.PlaceLogTrap:
+                    RPCProcedure.placeLogTrap(reader.ReadBytesAndSize());
                     break;
                 case (byte)CustomRPC.TrackerUsedTracker:
                     RPCProcedure.trackerUsedTracker(reader.ReadByte());

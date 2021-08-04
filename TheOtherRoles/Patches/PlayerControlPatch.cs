@@ -574,6 +574,8 @@ namespace TheOtherRoles.Patches {
                 snitchUpdate();
                 // BountyHunter
                 bountyHunterUpdate();
+                // Logger
+                LogTrap.recordAllPlayerOnTraps();
             } 
         }
     }
@@ -594,18 +596,26 @@ namespace TheOtherRoles.Patches {
     class PlayerControlCmdReportDeadBodyPatch {
         public static void Prefix(PlayerControl __instance) {
             // Murder the bitten player before the meeting starts or reset the bitten player
-            if (Vampire.bitten != null && !Vampire.bitten.Data.IsDead && Helpers.handleMurderAttempt(Vampire.bitten, true)) {
+            vampireResetOrKill(__instance);            
+        }
+
+        public static void vampireResetOrKill(PlayerControl __instance)
+        {
+            if (Vampire.bitten != null && !Vampire.bitten.Data.IsDead && Helpers.handleMurderAttempt(Vampire.bitten, true))
+            {
                 MessageWriter killWriter = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId, (byte)CustomRPC.VampireTryKill, Hazel.SendOption.Reliable, -1);
                 AmongUsClient.Instance.FinishRpcImmediately(killWriter);
                 RPCProcedure.vampireTryKill();
-            } else {
+            }
+            else
+            {
                 MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId, (byte)CustomRPC.VampireSetBitten, Hazel.SendOption.Reliable, -1);
                 writer.Write(byte.MaxValue);
                 writer.Write(byte.MaxValue);
                 AmongUsClient.Instance.FinishRpcImmediately(writer);
                 RPCProcedure.vampireSetBitten(byte.MaxValue, byte.MaxValue);
             }
-        }
+        }       
     }
     [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.RpcMurderPlayer))]
     class RpcMurderPlayer {
@@ -624,6 +634,8 @@ namespace TheOtherRoles.Patches {
             return false;
         }
     }
+
+
 
     [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.LocalPlayer.CmdReportDeadBody))]
     class BodyReportPatch
