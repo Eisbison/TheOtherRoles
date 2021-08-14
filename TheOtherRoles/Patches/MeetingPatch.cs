@@ -292,6 +292,14 @@ namespace TheOtherRoles.Patches {
                         __instance.playerStates.ToList().ForEach(x => x.gameObject.SetActive(true));
                         UnityEngine.Object.Destroy(container.gameObject);
                         __instance.playerStates.ToList().ForEach(x => { if (x.transform.FindChild("ShootButton") != null) UnityEngine.Object.Destroy(x.transform.FindChild("ShootButton").gameObject); });
+
+                        // Guesser info posted to ghost chat
+                        if (CustomOptionHolder.guesserInfoInGhostChat.getBool())
+                        {
+                            string msg = $"Guesser guessed {target.name} as {roleInfo.name} ";
+                            msg += (target != PlayerControl.LocalPlayer ? "and was correct!" : "but was wrong!");
+                            target.RpcSendChat(msg);  // The target is dead at this point, so only ghosts will see the message.
+                        }
                     }
                 }));
 
