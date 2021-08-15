@@ -21,6 +21,12 @@ namespace TheOtherRoles {
         public static CustomOption neutralRolesCountMax;
         public static CustomOption impostorRolesCountMin;
         public static CustomOption impostorRolesCountMax;
+        
+        public static CustomOption evilShipProbability;
+        public static CustomOption evilShipKillCooldownMin;
+        public static CustomOption evilShipKillCooldownMax;
+        public static CustomOption evilShipSabotageCooldownMin;
+        public static CustomOption evilShipSabotageCooldownMax;
 
         public static CustomOption mafiaSpawnRate;
         public static CustomOption janitorCooldown;
@@ -194,6 +200,13 @@ namespace TheOtherRoles {
             neutralRolesCountMax = CustomOption.Create(303, cs(new Color(204f / 255f, 204f / 255f, 0, 1f), "Maximum Neutral Roles"), 0f, 0f, 15f, 1f);
             impostorRolesCountMin = CustomOption.Create(304, cs(new Color(204f / 255f, 204f / 255f, 0, 1f), "Minimum Impostor Roles"), 0f, 0f, 3f, 1f);
             impostorRolesCountMax = CustomOption.Create(305, cs(new Color(204f / 255f, 204f / 255f, 0, 1f), "Maximum Impostor Roles"), 0f, 0f, 3f, 1f);
+            
+            
+            evilShipProbability = CustomOption.Create(400, cs(EvilShip.color, "Evil Ship"), rates, null, true);
+            evilShipKillCooldownMin = CustomOption.Create(401, "Minimum Kill Cooldown", 60f, 10f, 300f, 5f, evilShipProbability);
+            evilShipKillCooldownMax = CustomOption.Create(402, "Maximum Kill Cooldown", 120f, 10f, 300f, 5f, evilShipProbability);
+            evilShipSabotageCooldownMin = CustomOption.Create(403, "Minimum Sabotage Cooldown", 30f, 10f, 300f, 5f, evilShipProbability);
+            evilShipSabotageCooldownMax = CustomOption.Create(404, "Maximum Sabotage Cooldown", 90f, 10f, 300f, 5f, evilShipProbability);
 
             mafiaSpawnRate = CustomOption.Create(10, cs(Janitor.color, "Mafia"), rates, null, true);
             janitorCooldown = CustomOption.Create(11, "Janitor Cooldown", 30f, 10f, 60f, 2.5f, mafiaSpawnRate);
@@ -442,6 +455,10 @@ namespace TheOtherRoles {
             return (float)selections[selection];
         }
 
+        public int getInt() {
+            return (int)(float)selections[selection];
+        }
+
         // Option changes
 
         public void updateSelection(int newSelection) {
@@ -657,7 +674,7 @@ namespace TheOtherRoles {
 
             var hudString = sb.ToString();
 
-            int defaultSettingsLines = 19;
+            int defaultSettingsLines = 20;
             int roleSettingsLines = defaultSettingsLines + 35;
             int detailedSettingsP1 = roleSettingsLines + 37;
             int detailedSettingsP2 = detailedSettingsP1 + 38;

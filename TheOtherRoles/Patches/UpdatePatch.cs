@@ -183,6 +183,8 @@ namespace TheOtherRoles.Patches {
             Hacker.hackerTimer -= Time.deltaTime;
             Lighter.lighterTimer -= Time.deltaTime;
             Trickster.lightsOutTimer -= Time.deltaTime;
+            EvilShip.killCooldown -= Time.deltaTime;
+            EvilShip.sabotageCooldown -= Time.deltaTime;
         }
 
         static void camouflageAndMorphActions() {
@@ -273,6 +275,21 @@ namespace TheOtherRoles.Patches {
                 Morphling.morphling.nameText.text += suffix;
         }
 
+        public static void evilShipUpdate()
+        {
+            if (!EvilShip.enabled) return;
+            if (EvilShip.responsiblePlayerId != PlayerControl.LocalPlayer.PlayerId)
+            {
+                PlayerControl responsiblePlayer = Helpers.playerById(EvilShip.responsiblePlayerId);
+                if (responsiblePlayer.Data.Disconnected)
+                    EvilShip.assignNewResponsiblePlayer();
+                return;
+            }
+            if (MeetingHud.Instance || ExileController.Instance) EvilShip.resetCooldown();
+            if (EvilShip.killCooldown <= 0) EvilShip.kill();
+            if (EvilShip.sabotageCooldown <= 0) EvilShip.sabotage();
+        }
+
         static void updateImpostorKillButton(HudManager __instance) {
             if (!PlayerControl.LocalPlayer.Data.IsImpostor) return;
             bool enabled = true;
@@ -308,6 +325,8 @@ namespace TheOtherRoles.Patches {
             camouflageAndMorphActions();
             // Mini
             miniUpdate();
+            // Evil Ship
+            evilShipUpdate();
         }
     }
 }

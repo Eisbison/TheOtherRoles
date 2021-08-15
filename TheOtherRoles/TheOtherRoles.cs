@@ -1026,4 +1026,160 @@ namespace TheOtherRoles
             reportDelay = CustomOptionHolder.baitReportDelay.getFloat();
         }
     }
+
+    public static class EvilShip
+    {
+        public static Color color = Palette.ImpostorRed;
+
+        public static bool enabled;
+        public static byte responsiblePlayerId;  // only one player may execute EvilShip actions
+        public static int originalNumImpostors;
+        public static float killCooldown = 90f;
+        public static float sabotageCooldown = 60f;
+
+        private static readonly List<SystemTypes> doorsSkeld = new List<SystemTypes>() {
+            SystemTypes.Cafeteria, SystemTypes.UpperEngine, SystemTypes.LowerEngine, SystemTypes.Security,
+            SystemTypes.MedBay, SystemTypes.Electrical, SystemTypes.Storage
+        };
+
+        private static readonly List<SystemTypes> doorsPolus = new List<SystemTypes>() {
+            SystemTypes.Laboratory, SystemTypes.Office, SystemTypes.LifeSupp, SystemTypes.Comms, SystemTypes.Weapons,
+            SystemTypes.Electrical, SystemTypes.Storage
+        };
+        private static readonly List<SystemTypes> doorsAirship = new List<SystemTypes>() {
+            SystemTypes.Comms, SystemTypes.Kitchen, SystemTypes.Brig, SystemTypes.MainHall, SystemTypes.Records,
+            SystemTypes.Medical
+        };
+
+        // multiple times in list = more likely to be selected
+        private static readonly List<SystemTypes> systemsSkeld = new List<SystemTypes>() {
+            SystemTypes.Reactor, SystemTypes.Reactor, SystemTypes.Reactor,
+            SystemTypes.LifeSupp, SystemTypes.LifeSupp, SystemTypes.LifeSupp,
+            SystemTypes.Electrical, SystemTypes.Electrical,
+            SystemTypes.Comms,
+        };
+        private static readonly List<SystemTypes> systemsMira = new List<SystemTypes>() {
+            SystemTypes.Reactor, SystemTypes.Reactor, SystemTypes.Reactor,
+            SystemTypes.LifeSupp, SystemTypes.LifeSupp, SystemTypes.LifeSupp,
+            SystemTypes.Electrical, SystemTypes.Electrical,
+            SystemTypes.Comms,
+        };
+        private static readonly List<SystemTypes> systemsPolus = new List<SystemTypes>() {
+            SystemTypes.Laboratory, SystemTypes.Laboratory, SystemTypes.Laboratory, // Lab on Polus = Reactor on all others
+            SystemTypes.Electrical, SystemTypes.Electrical,
+            SystemTypes.Comms,
+        };
+        private static readonly List<SystemTypes> systemsAirship = new List<SystemTypes>() {
+            SystemTypes.Reactor, SystemTypes.Reactor, SystemTypes.Reactor,
+            SystemTypes.LifeSupp, SystemTypes.LifeSupp, SystemTypes.LifeSupp,
+            SystemTypes.Electrical, SystemTypes.Electrical,
+            SystemTypes.Comms,
+        };
+
+        public static void kill()
+        {
+            resetKillCooldown();
+            List<PlayerControl> alivePlayers = PlayerControl.AllPlayerControls.ToArray().ToList().OrderBy(x => Guid.NewGuid()).ToList();
+            alivePlayers.RemoveAll(x => x.Data.IsDead || x.Data.Disconnected);
+            if (Medic.shielded != null)
+                alivePlayers.RemoveAll(x => x.Data.PlayerId == Medic.shielded.PlayerId);
+            var index = TheOtherRoles.rnd.Next(0, alivePlayers.Count);
+            var player = alivePlayers[index];
+            killPlayer(player.PlayerId);
+        }
+
+        public static void sabotage()
+        {
+            resetSabotageCooldown();
+
+            if (Helpers.onSkeld())
+                sabotage(systemsSkeld, doorsSkeld);
+            if (Helpers.onMira())
+                sabotage(systemsMira);
+            if (Helpers.onPolus())
+                sabotage(systemsPolus, doorsPolus);
+            if (Helpers.onAirship())
+                sabotage(systemsAirship, doorsAirship);
+        }
+
+        private static void sabotage(List<SystemTypes> systems, List<SystemTypes> doors = null) {
+            if (doors != null && new System.Random().Next(100) < 30)
+                sabotageDoors(doors);
+            else
+                sabotageRandomSystem(systems);
+        }
+
+        private static void sabotageDoors(List<SystemTypes> doors, int percentage = 50) {
+            // Closes all doors with a certain probability, therefore having a chance of leaving some of them open.
+            // If we close all and turn on another sabotage, it might be too obvious that we are in EvilShip mode
+            foreach (var door in doors) {
+                if (new System.Random().Next(100) < percentage) ShipStatus.Instance.RpcCloseDoorsOfType(door);
+            }
+        }
+
+        private static void sabotageRandomSystem(List<SystemTypes> systems)
+        {
+            int index = new System.Random().Next(systems.Count);
+            ShipStatus.Instance.RpcRepairSystem(SystemTypes.Sabotage, (byte)systems[index]);
+        }
+
+        private static void killPlayer(byte playerId)
+        {
+            MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId, (byte)CustomRPC.UncheckedMurderPlayer, Hazel.SendOption.Reliable, -1);
+            writer.Write(playerId);
+            writer.Write(playerId);
+            AmongUsClient.Instance.FinishRpcImmediately(writer);
+            RPCProcedure.uncheckedMurderPlayer(playerId, playerId);
+        }
+
+        public static void broadcastEvilShipData()
+        {
+            MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId, (byte)CustomRPC.SetEvilShipData, Hazel.SendOption.Reliable, -1);
+            writer.Write(enabled);
+            writer.Write(originalNumImpostors);
+            writer.Write(responsiblePlayerId);
+            AmongUsClient.Instance.FinishRpcImmediately(writer);
+        }
+
+        public static void assignNewResponsiblePlayer()
+        {
+            // In case the host leaves, we need a new client that feels responsible to execute EvilShip actions.
+            // Choose the client deterministically, so we can dismiss sending RPC messages
+            List<PlayerControl> connectedPlayers = PlayerControl.AllPlayerControls.ToArray().ToList().OrderBy(x => x.PlayerId).ToList();
+            connectedPlayers.RemoveAll(x => x.Data.Disconnected);
+            responsiblePlayerId = connectedPlayers.First().PlayerId;
+            if (PlayerControl.LocalPlayer.PlayerId != responsiblePlayerId) return;
+            // reset cooldown, otherwise the new client would instantly kill / sabotage
+            resetCooldown();
+        }
+        
+        public static void clearAndReload()
+        {
+            enabled = TheOtherRoles.rnd.Next(1, 101) <= CustomOptionHolder.evilShipProbability.getSelection() * 10;
+            originalNumImpostors = PlayerControl.GameOptions.NumImpostors;
+            assignNewResponsiblePlayer();
+        }
+
+        public static void resetCooldown()
+        {
+            resetKillCooldown();
+            resetSabotageCooldown();
+        }
+
+        private static void resetKillCooldown()
+        {
+            var min = CustomOptionHolder.evilShipKillCooldownMin.getInt();
+            var max = CustomOptionHolder.evilShipKillCooldownMax.getInt();
+            min = Math.Min(min, max);
+            killCooldown = TheOtherRoles.rnd.Next(min, max+1);
+        }
+        
+        private static void resetSabotageCooldown()
+        {
+            var min = CustomOptionHolder.evilShipSabotageCooldownMin.getInt();
+            var max = CustomOptionHolder.evilShipSabotageCooldownMax.getInt();
+            min = Math.Min(min, max);
+            sabotageCooldown = TheOtherRoles.rnd.Next(min, max+1);
+        }
+    }
 }
