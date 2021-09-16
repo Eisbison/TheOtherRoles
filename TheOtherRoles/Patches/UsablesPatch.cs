@@ -29,6 +29,8 @@ namespace TheOtherRoles.Patches {
                 roleCouldUse = true;
             else if (Spy.canEnterVents && Spy.spy != null && Spy.spy == @object)
                 roleCouldUse = true;
+            else if (Madmate.canEnterVents && Madmate.madmate != null && Madmate.madmate == @object)
+                roleCouldUse = true;
             else if (pc.IsImpostor) {
                 if (Janitor.janitor != null && Janitor.janitor == PlayerControl.LocalPlayer)
                     roleCouldUse = false;
@@ -79,7 +81,7 @@ namespace TheOtherRoles.Patches {
             __instance.CanUse(PlayerControl.LocalPlayer.Data, out canUse, out couldUse);
             bool canMoveInVents = true;
             if (!canUse) return false; // No need to execute the native method as using is disallowed anyways
-            if (Spy.spy == PlayerControl.LocalPlayer) {
+            if (Spy.spy == PlayerControl.LocalPlayer || Madmate.madmate == PlayerControl.LocalPlayer) {
                 canMoveInVents = false;
             }
             bool isEnter = !PlayerControl.LocalPlayer.inVent;
@@ -136,6 +138,19 @@ namespace TheOtherRoles.Patches {
                 }
             }
 
+            // Madmate sabotage
+            if (Madmate.canSabotage && Madmate.madmate != null && Madmate.madmate == PlayerControl.LocalPlayer && PlayerControl.LocalPlayer.CanMove) {
+                var useButton = __instance.currentButtonShown;
+                if (!Madmate.madmate.Data.IsDead && __instance.currentTarget == null) { // no target, so sabotage
+                    useButton.graphic.sprite = DestroyableSingleton<TranslationController>.Instance.GetImage(ImageNames.SabotageButton);
+                    useButton.graphic.color = UseButtonManager.EnabledColor;
+                    useButton.text.enabled = false;
+                } else {
+                    useButton.graphic.sprite = DestroyableSingleton<TranslationController>.Instance.GetImage(ImageNames.UseButton);
+                    useButton.text.enabled = false;
+                }
+            }
+
             // Mafia sabotage button render patch
             bool blockSabotageJanitor = (Janitor.janitor != null && Janitor.janitor == PlayerControl.LocalPlayer);
             bool blockSabotageMafioso = (Mafioso.mafioso != null && Mafioso.mafioso == PlayerControl.LocalPlayer && Godfather.godfather != null && !Godfather.godfather.Data.IsDead);
@@ -155,6 +170,12 @@ namespace TheOtherRoles.Patches {
             if (__instance.currentTarget != null) return true;
             // Jester sabotage
             if (Jester.canSabotage && Jester.jester != null && Jester.jester == PlayerControl.LocalPlayer && !PlayerControl.LocalPlayer.Data.IsDead) {
+                Action<MapBehaviour> action = m => m.ShowInfectedMap() ;
+                DestroyableSingleton<HudManager>.Instance.ShowMap(action);
+                return false;
+            }
+            // Madmate sabotage
+            if (Madmate.canSabotage && Madmate.madmate != null && Madmate.madmate == PlayerControl.LocalPlayer && !PlayerControl.LocalPlayer.Data.IsDead) {
                 Action<MapBehaviour> action = m => m.ShowInfectedMap() ;
                 DestroyableSingleton<HudManager>.Instance.ShowMap(action);
                 return false;
@@ -225,8 +246,10 @@ namespace TheOtherRoles.Patches {
     [HarmonyPatch(typeof(TuneRadioMinigame), nameof(TuneRadioMinigame.Begin))]
     class CommsMinigameBeginPatch {
         static void Postfix(TuneRadioMinigame __instance) {
-            // Block Swapper from fixing comms. Still looking for a better way to do this, but deleting the task doesn't seem like a viable option since then the camera, admin table, ... work while comms are out
-            if (Swapper.swapper != null && Swapper.swapper == PlayerControl.LocalPlayer) {
+            // Block Swapper or Madmate from fixing comms. Still looking for a better way to do this, but deleting the task doesn't seem like a viable option since then the camera, admin table, ... work while comms are out
+            if ((Swapper.swapper != null && Swapper.swapper == PlayerControl.LocalPlayer) ||
+                (!Madmate.canFixComm && Madmate.madmate != null &&
+                 Madmate.madmate == PlayerControl.LocalPlayer)) {
                 __instance.Close();
             }
         }
@@ -235,8 +258,9 @@ namespace TheOtherRoles.Patches {
     [HarmonyPatch(typeof(SwitchMinigame), nameof(SwitchMinigame.Begin))]
     class LightsMinigameBeginPatch {
         static void Postfix(SwitchMinigame __instance) {
-            // Block Swapper from fixing lights. One could also just delete the PlayerTask, but I wanted to do it the same way as with coms for now.
-            if (Swapper.swapper != null && Swapper.swapper == PlayerControl.LocalPlayer) {
+            // Block Swapper or Madmate from fixing lights. One could also just delete the PlayerTask, but I wanted to do it the same way as with coms for now.
+            if ((Swapper.swapper != null && Swapper.swapper == PlayerControl.LocalPlayer) ||
+                (Madmate.madmate != null && Madmate.madmate == PlayerControl.LocalPlayer)) {
                 __instance.Close();
             }
         }
